@@ -1,0 +1,182 @@
+@import "tailwindcss";
+
+/*
+ * デザイントークン。iOS のシステムカラーに寄せ、ライト／ダークで同じ役割の色を切り替える。
+ * 画面ごとに色を直書きせず、必ずここの役割名（bg, surface, label …）を使う。
+ */
+:root {
+  --bg: #f2f2f7; /* グループ化された画面の背景 */
+  --surface: #ffffff; /* リストやカードの面 */
+  --label: #000000;
+  --label-secondary: rgb(60 60 67 / 0.6);
+  --separator: rgb(60 60 67 / 0.18);
+  --accent: #007aff;
+  --danger: #ff3b30;
+  --warning: #c93400;
+  --fill-pressed: rgb(0 0 0 / 0.06);
+  --chrome: rgb(242 242 247 / 0.72); /* 半透明のヘッダー */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --surface: #1c1c1e;
+    --label: #ffffff;
+    --label-secondary: rgb(235 235 245 / 0.6);
+    --separator: rgb(84 84 88 / 0.6);
+    --accent: #0a84ff;
+    --danger: #ff453a;
+    --warning: #ff9f0a;
+    --fill-pressed: rgb(255 255 255 / 0.08);
+    --chrome: rgb(0 0 0 / 0.68);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-label: var(--label);
+  --color-label-secondary: var(--label-secondary);
+  --color-separator: var(--separator);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+}
+
+html {
+  /* 本文はシステムフォント。文字サイズ設定に追従させるため rem 基準にする */
+  font: 100% / 1.5 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  -webkit-text-size-adjust: 100%;
+  color-scheme: light dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--label);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ダブルタップ拡大の待ち時間をなくし、タップに即反応させる */
+a,
+button {
+  touch-action: manipulation;
+}
+
+@layer components {
+  /* 大見出し: 大きい文字ほど字間を詰め、行間も詰める。和文はプロポーショナル詰めを使う */
+  .large-title {
+    font-size: 2.125rem;
+    line-height: 1.12;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    font-feature-settings: "palt";
+  }
+
+  /* リスト見出し: 小さい文字は字間をわずかに広げて読みやすくする */
+  .section-header {
+    padding-inline: 1rem;
+    font-size: 0.8125rem;
+    letter-spacing: 0.02em;
+    color: var(--label-secondary);
+  }
+
+  .section-footer {
+    padding-inline: 1rem;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--label-secondary);
+  }
+
+  /* 半透明のヘッダー。下を流れる内容が透けて見え、固定の帯として幅を取らない */
+  .chrome {
+    background: var(--chrome);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  /* iOS 設定アプリ風のグループ化リスト */
+  .grouped {
+    overflow: hidden;
+    border-radius: 0.75rem;
+    background: var(--surface);
+  }
+  /* 区切り線は左端から 1rem 内側で始める（iOS のリストと同じ） */
+  .grouped > li + li {
+    position: relative;
+  }
+  .grouped > li + li::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 1rem;
+    height: 0.5px;
+    background: var(--separator);
+  }
+
+  .row {
+    display: flex;
+    min-height: 2.75rem; /* 44pt のタップ領域 */
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6875rem 1rem;
+    font-size: 1.0625rem;
+  }
+
+  /* 押した瞬間（離す前）に反応させる。100ms で即座に、戻りも同じ経路で */
+  .pressable {
+    transition:
+      transform 100ms ease-out,
+      background-color 100ms ease-out,
+      opacity 100ms ease-out;
+  }
+  .pressable:active {
+    transform: scale(0.97);
+  }
+  .row.pressable:active {
+    transform: none;
+    background: var(--fill-pressed);
+  }
+
+  .button-primary {
+    display: flex;
+    min-height: 3.125rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.875rem;
+    background: var(--accent);
+    color: #ffffff;
+    font-size: 1.0625rem;
+    font-weight: 600;
+  }
+  .button-primary:active {
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pressable,
+  .pressable:active {
+    transform: none !important;
+    transition: opacity 150ms ease, background-color 150ms ease;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .chrome {
+    background: var(--bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --label-secondary: var(--label);
+    --separator: var(--label);
+  }
+  .chrome {
+    background: var(--bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: inset 0 -1px 0 var(--separator);
+  }
+}
