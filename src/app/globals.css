@@ -44,8 +44,12 @@
 }
 
 html {
-  /* 本文はシステムフォント。文字サイズ設定に追従させるため rem 基準にする */
-  font: 100% / 1.5 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  /* 本文は M PLUS 2。読み込み前や失敗時は端末標準の日本語フォントで表示する。
+     文字サイズ設定に追従させるため rem 基準にする。
+     ※ font の一括指定に var() を混ぜるとビルド時の CSS 変換で消えるため、個別に指定する */
+  font-family: var(--font-mplus), system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font-size: 100%;
+  line-height: 1.5;
   -webkit-text-size-adjust: 100%;
   color-scheme: light dark;
 }

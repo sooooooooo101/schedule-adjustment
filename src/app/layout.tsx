@@ -1,5 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { M_PLUS_2 } from "next/font/google";
 import "./globals.css";
+
+// 端末を問わず同じ見た目にするため、日本語も Web フォントで配信する（可変ウェイト）。
+const mplus = M_PLUS_2({
+  weight: "variable",
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-mplus",
+});
 
 export const metadata: Metadata = {
   title: "日程調整",
@@ -21,7 +30,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ja" className="h-full antialiased">
+    <html lang="ja" className={`${mplus.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );
