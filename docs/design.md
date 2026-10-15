@@ -62,7 +62,7 @@
 |---|---|---|
 | フロント / API | Next.js（App Router）on Vercel | スマホ向け Web とサーバー処理を1つにまとめられる。無料枠で足りる見込み |
 | データベース | Neon（Postgres、Vercel Marketplace 経由） | 無料枠で足りる。使わないときは自動休止し、アクセスで自動起動する（Supabase 無料プランの「7日で一時停止」を避けるため変更） |
-| 認証 | 作成者のみ Google ログイン（OWNER_EMAILS で許可したアカウントだけ）。Gmail と Workspace の複数アカウントを連携できる | 回答者はログインなし |
+| 認証 | 誰でも Google ログインで作成者になれる（複数ユーザー）。各ユーザーが Gmail と Workspace など複数アカウントを連携できる | 回答者はログインなし |
 | AI | Claude API（構造化出力で日時を JSON に変換） | 自然文 → 候補日時、自然文回答 → ○△× の2用途。モデルは実装時に費用と精度で選ぶ |
 | カレンダー | Google Calendar API（freeBusy で空き取得、events.insert で作成） | Meet は conferenceData で発行、招待は sendUpdates=all |
 
