@@ -9,8 +9,7 @@ const schema = z.object({
   TOKEN_ENCRYPTION_KEY: z.string().min(1),
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
-  SUPABASE_URL: z.url(),
-  SUPABASE_SECRET_KEY: z.string().min(1),
+  DATABASE_URL: z.string().startsWith("postgres"),
 });
 
 export type Env = z.infer<typeof schema> & { ownerEmails: string[] };

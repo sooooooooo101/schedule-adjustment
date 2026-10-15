@@ -61,7 +61,7 @@
 | 層 | 採用案 | 理由 |
 |---|---|---|
 | フロント / API | Next.js（App Router）on Vercel | スマホ向け Web とサーバー処理を1つにまとめられる。無料枠で足りる見込み |
-| データベース | Supabase（Postgres） | 無料枠で足りる見込み。管理画面で中身を直接見られる |
+| データベース | Neon（Postgres、Vercel Marketplace 経由） | 無料枠で足りる。使わないときは自動休止し、アクセスで自動起動する（Supabase 無料プランの「7日で一時停止」を避けるため変更） |
 | 認証 | 作成者のみ Google ログイン（OWNER_EMAILS で許可したアカウントだけ）。Gmail と Workspace の複数アカウントを連携できる | 回答者はログインなし |
 | AI | Claude API（構造化出力で日時を JSON に変換） | 自然文 → 候補日時、自然文回答 → ○△× の2用途。モデルは実装時に費用と精度で選ぶ |
 | カレンダー | Google Calendar API（freeBusy で空き取得、events.insert で作成） | Meet は conferenceData で発行、招待は sendUpdates=all |
@@ -129,7 +129,7 @@ Apple の Human Interface の考え方（apple-design スキル）に沿う。
 
 決定済み:
 
-- 構成は Next.js + Supabase + Vercel
+- 構成は Next.js + Neon + Vercel（Supabase は無料枠の上限と7日での一時停止のため不採用）
 - Gmail と Workspace の両方を連携する
 - 調整は3人以上のグループが中心。1対1向けの近道は作らない
 
@@ -139,7 +139,7 @@ Apple の Human Interface の考え方（apple-design スキル）に沿う。
 
 ## 9. 実装の順番（案）
 
-1. 雛形作成、作成者の Google ログイン、Supabase 接続（完了）
+1. 雛形作成、作成者の Google ログイン、DB 接続（完了）
 2. 調整の作成（まずは手入力の候補で）→ 共有リンク → 回答 → 回答一覧
 3. 確定時の Google カレンダー登録・招待・Meet 発行
 4. AI による作成時の自然文解釈（freeBusy 連携込み）

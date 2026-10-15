@@ -1,6 +1,5 @@
--- 日程調整アプリの初期スキーマ。
--- すべてサーバー（シークレットキー）経由で読み書きするため、RLS を有効にしてポリシーは作らない。
--- これにより公開キー（anon / publishable）からは一切読み書きできない。
+-- 日程調整アプリの初期スキーマ（Neon / PostgreSQL）。
+-- DB にはサーバーからのみ接続する。ブラウザに接続情報を渡すことはない。
 
 create table google_accounts (
   email text primary key,
@@ -52,9 +51,3 @@ create table answers (
   value text not null check (value in ('yes', 'maybe', 'no')),
   primary key (response_id, slot_id)
 );
-
-alter table google_accounts enable row level security;
-alter table events enable row level security;
-alter table slots enable row level security;
-alter table responses enable row level security;
-alter table answers enable row level security;
