@@ -1,13 +1,13 @@
 import { Suspense } from "react";
-import { listAccounts } from "@/lib/accounts";
+import Link from "next/link";
 import { getSession } from "@/lib/auth";
-import { missingCalendarScopes } from "@/lib/google";
+import { listEvents } from "@/lib/events";
 
 const ERROR_MESSAGES: Record<string, string> = {
   denied: "Google ログインがキャンセルされました。",
   invalid_request: "ログイン手続きの有効期限が切れました。もう一度お試しください。",
   token: "Google との連携に失敗しました。もう一度お試しください。",
-  not_owner: "このアカウントは利用を許可されていません。OWNER_EMAILS を確認してください。",
+  linked_elsewhere: "その Google アカウントは、別のユーザーとしてすでに使われています。",
 };
 
 export default function Home(props: PageProps<"/">) {
@@ -25,7 +25,7 @@ async function HomeContent({ searchParams }: { searchParams: PageProps<"/">["sea
   const message = typeof error === "string" ? ERROR_MESSAGES[error] : undefined;
   const session = await getSession();
 
-  return session ? <Dashboard email={session.email} message={message} /> : <Login message={message} />;
+  return session ? <Dashboard userId={session.userId} message={message} /> : <Login message={message} />;
 }
 
 function Alert({ message }: { message?: string }) {
@@ -61,52 +61,40 @@ function Login({ message }: { message?: string }) {
   );
 }
 
-async function Dashboard({ email, message }: { email: string; message?: string }) {
-  const accounts = await listAccounts();
-  const hasMissingScopes = accounts.some((a) => missingCalendarScopes(a.scopes).length > 0);
+async function Dashboard({ userId, message }: { userId: number; message?: string }) {
+  const events = await listEvents(userId);
 
   return (
-    <div className="flex flex-col gap-8 pt-12 pb-[max(env(safe-area-inset-bottom),2rem)]">
-      <h1 className="large-title">アカウント</h1>
+    <div className="flex flex-col gap-8 pt-4 pb-[max(env(safe-area-inset-bottom),2rem)]">
+      <div className="flex justify-end">
+        <Link href="/settings" className="back-link pressable">アカウント</Link>
+      </div>
+      <h1 className="large-title -mt-4">日程調整</h1>
       <Alert message={message} />
 
-      <section className="flex flex-col gap-1.5">
-        <h2 className="section-header">連携中の Google アカウント</h2>
-        <ul className="grouped">
-          {accounts.map((a) => {
-            const missing = missingCalendarScopes(a.scopes).length > 0;
-            return (
-              <li key={a.email} className="row">
-                <span className="min-w-0 flex-1 break-all">{a.email}</span>
-                {missing && <span className="shrink-0 text-[0.9375rem] text-warning">権限不足</span>}
-                {a.isPrimary && !missing && <span className="shrink-0 text-[0.9375rem] text-label-secondary">メイン</span>}
-              </li>
-            );
-          })}
-          <li>
-            <a href="/api/auth/google" className="row pressable text-accent">
-              別のアカウントを連携
-            </a>
-          </li>
-        </ul>
-        <p className="section-footer">
-          {hasMissingScopes
-            ? "「権限不足」のアカウントは、もう一度連携してカレンダーの権限をすべて許可してください。"
-            : "メインのアカウントのカレンダーに予定を作成します。空き確認には連携中のすべてのアカウントを使います。"}
-        </p>
-      </section>
+      <Link href="/events/new" className="button-primary pressable">
+        新しい調整を作る
+      </Link>
 
       <section className="flex flex-col gap-1.5">
-        <ul className="grouped">
-          <li>
-            <form action="/api/auth/logout" method="post">
-              <button type="submit" className="row pressable w-full justify-center text-danger">
-                ログアウト
-              </button>
-            </form>
-          </li>
-        </ul>
-        <p className="section-footer">{email} でログイン中</p>
+        <h2 className="section-header">あなたの調整</h2>
+        {events.length === 0 ? (
+          <p className="section-footer">まだ調整はありません。</p>
+        ) : (
+          <ul className="grouped">
+            {events.map((e) => (
+              <li key={e.id}>
+                <Link href={`/events/${e.id}`} className="row pressable">
+                  <span className="min-w-0 flex-1 truncate">{e.title}</span>
+                  <span className="shrink-0 text-[0.9375rem] text-label-secondary">
+                    {e.status === "confirmed" ? "確定済み" : `回答 ${e.responseCount}`}
+                  </span>
+                  <span aria-hidden className="text-label-secondary">›</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );

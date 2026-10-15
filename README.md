@@ -52,7 +52,7 @@ openssl rand -base64 48   # SESSION_SECRET
 openssl rand -base64 32   # TOKEN_ENCRYPTION_KEY
 ```
 
-`OWNER_EMAILS` には、ログインを許可する自分の Google アカウントをカンマ区切りで入れます。
+誰でも Google アカウントでログインして作成者になれます（未審査の間は Google の上限で最大100ユーザー）。
 
 ### 4. Vercel の環境変数
 

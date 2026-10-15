@@ -1,10 +1,8 @@
 import "server-only";
 import { z } from "zod";
-import { parseOwnerEmails } from "./owners";
 
 const schema = z.object({
   APP_URL: z.url(),
-  OWNER_EMAILS: z.string().min(1),
   SESSION_SECRET: z.string().min(32),
   TOKEN_ENCRYPTION_KEY: z.string().min(1),
   GOOGLE_CLIENT_ID: z.string().min(1),
@@ -12,7 +10,7 @@ const schema = z.object({
   DATABASE_URL: z.string().startsWith("postgres"),
 });
 
-export type Env = z.infer<typeof schema> & { ownerEmails: string[] };
+export type Env = z.infer<typeof schema>;
 
 let cached: Env | null = null;
 
@@ -24,6 +22,6 @@ export function env(): Env {
     const names = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
     throw new Error(`環境変数が不足または不正です: ${names}（.env.example を参照）`);
   }
-  cached = { ...parsed.data, ownerEmails: parseOwnerEmails(parsed.data.OWNER_EMAILS) };
+  cached = parsed.data;
   return cached;
 }

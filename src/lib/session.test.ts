@@ -5,12 +5,12 @@ const secret = "a".repeat(32);
 
 describe("signSession / verifySession", () => {
   it("署名したセッションを検証できる", async () => {
-    const token = await signSession({ email: "me@example.com" }, secret);
-    expect(await verifySession(token, secret)).toEqual({ email: "me@example.com" });
+    const token = await signSession({ userId: 42 }, secret);
+    expect(await verifySession(token, secret)).toEqual({ userId: 42 });
   });
 
   it("別の秘密鍵で署名されたトークンは拒否する", async () => {
-    const token = await signSession({ email: "me@example.com" }, "b".repeat(32));
+    const token = await signSession({ userId: 42 }, "b".repeat(32));
     expect(await verifySession(token, secret)).toBeNull();
   });
 
@@ -19,6 +19,6 @@ describe("signSession / verifySession", () => {
   });
 
   it("短すぎる秘密鍵は使わせない", async () => {
-    await expect(signSession({ email: "me@example.com" }, "short")).rejects.toThrow();
+    await expect(signSession({ userId: 42 }, "short")).rejects.toThrow();
   });
 });

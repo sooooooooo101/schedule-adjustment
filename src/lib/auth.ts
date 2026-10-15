@@ -1,15 +1,16 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { userExists } from "./accounts";
 import { env } from "./env";
-import { isOwnerEmail } from "./owners";
 import { SESSION_COOKIE, SESSION_MAX_AGE_SEC, signSession, verifySession, type Session } from "./session";
 
 export async function getSession(): Promise<Session | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const session = await verifySession(token, env().SESSION_SECRET);
-  // OWNER_EMAILS から外したアカウントのクッキーは無効として扱う。
-  if (!session || !isOwnerEmail(session.email, env().ownerEmails)) return null;
+  // 削除されたユーザーのクッキーは無効として扱う
+  if (!session || !(await userExists(session.userId))) return null;
   return session;
 }
 
@@ -26,4 +27,11 @@ export async function setSession(session: Session): Promise<void> {
 
 export async function clearSession(): Promise<void> {
   (await cookies()).delete(SESSION_COOKIE);
+}
+
+// ログインが必要な画面・操作で使う。未ログインならトップ（ログイン画面）へ戻す
+export async function requireSession(): Promise<Session> {
+  const session = await getSession();
+  if (!session) redirect("/");
+  return session;
 }

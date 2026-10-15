@@ -1,11 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
-import { upsertAccount } from "@/lib/accounts";
+import { AccountLinkedElsewhereError, linkGoogleAccount, signInWithGoogle } from "@/lib/accounts";
 import { getSession, setSession } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { OAUTH_COOKIE, oauthClient } from "@/lib/google";
-import { isOwnerEmail } from "@/lib/owners";
 
 function back(error?: string): Response {
   const url = new URL("/", env().APP_URL);
@@ -48,20 +47,23 @@ export async function GET(request: NextRequest) {
     const payload = ticket.getPayload();
     if (!payload?.email || !payload.email_verified) return back("token");
 
-    const email = payload.email.toLowerCase();
-    if (!isOwnerEmail(email, env().ownerEmails)) return back("not_owner");
-
-    await upsertAccount({
-      email,
+    const input = {
+      email: payload.email.toLowerCase(),
       googleSub: payload.sub,
       refreshToken: tokens.refresh_token ?? null,
       scopes: (tokens.scope ?? "").split(" ").filter(Boolean),
-    });
+    };
 
-    // 2つ目のアカウントを連携したときは、最初にログインしたアカウントのままにする。
-    if (!(await getSession())) await setSession({ email });
+    // ログイン中なら追加のアカウント連携、そうでなければログイン（初回は登録）
+    const session = await getSession();
+    if (session) {
+      await linkGoogleAccount(session.userId, input);
+    } else {
+      await setSession({ userId: await signInWithGoogle(input) });
+    }
     return back();
   } catch (e) {
+    if (e instanceof AccountLinkedElsewhereError) return back("linked_elsewhere");
     console.error("Google ログインに失敗しました", e);
     return back("token");
   }
