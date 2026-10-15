@@ -7,7 +7,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   denied: "Google ログインがキャンセルされました。",
   invalid_request: "ログイン手続きの有効期限が切れました。もう一度お試しください。",
   token: "Google との連携に失敗しました。もう一度お試しください。",
-  not_owner: "このアカウントは利用を許可されていません。OWNER_EMAILS を確認してください。",
+  linked_elsewhere: "その Google アカウントは、別のユーザーとしてすでに使われています。",
 };
 
 export default function Home(props: PageProps<"/">) {
@@ -25,7 +25,7 @@ async function HomeContent({ searchParams }: { searchParams: PageProps<"/">["sea
   const message = typeof error === "string" ? ERROR_MESSAGES[error] : undefined;
   const session = await getSession();
 
-  return session ? <Dashboard email={session.email} message={message} /> : <Login message={message} />;
+  return session ? <Dashboard userId={session.userId} message={message} /> : <Login message={message} />;
 }
 
 function Alert({ message }: { message?: string }) {
@@ -61,8 +61,9 @@ function Login({ message }: { message?: string }) {
   );
 }
 
-async function Dashboard({ email, message }: { email: string; message?: string }) {
-  const accounts = await listAccounts();
+async function Dashboard({ userId, message }: { userId: number; message?: string }) {
+  const accounts = await listAccounts(userId);
+  const primary = accounts.find((a) => a.isPrimary)?.email;
   const hasMissingScopes = accounts.some((a) => missingCalendarScopes(a.scopes).length > 0);
 
   return (
@@ -106,7 +107,7 @@ async function Dashboard({ email, message }: { email: string; message?: string }
             </form>
           </li>
         </ul>
-        <p className="section-footer">{email} でログイン中</p>
+        {primary && <p className="section-footer">{primary} でログイン中</p>}
       </section>
     </div>
   );

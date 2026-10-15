@@ -1,8 +1,8 @@
 import { SignJWT, jwtVerify } from "jose";
 
-// 作成者（自分）のログイン状態を表す署名付きクッキーの中身。
+// ログイン中のユーザーを表す署名付きクッキーの中身。
 export type Session = {
-  email: string;
+  userId: number;
 };
 
 export const SESSION_COOKIE = "sa_session";
@@ -16,8 +16,9 @@ function toKey(secret: string): Uint8Array {
 }
 
 export async function signSession(session: Session, secret: string): Promise<string> {
-  return new SignJWT({ email: session.email })
+  return new SignJWT({})
     .setProtectedHeader({ alg: "HS256" })
+    .setSubject(String(session.userId))
     .setIssuedAt()
     .setExpirationTime(`${SESSION_MAX_AGE_SEC}s`)
     .sign(toKey(secret));
@@ -26,7 +27,8 @@ export async function signSession(session: Session, secret: string): Promise<str
 export async function verifySession(token: string, secret: string): Promise<Session | null> {
   try {
     const { payload } = await jwtVerify(token, toKey(secret), { algorithms: ["HS256"] });
-    return typeof payload.email === "string" ? { email: payload.email } : null;
+    const userId = Number(payload.sub);
+    return Number.isSafeInteger(userId) && userId > 0 ? { userId } : null;
   } catch {
     return null;
   }

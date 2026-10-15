@@ -1,15 +1,15 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { userExists } from "./accounts";
 import { env } from "./env";
-import { isOwnerEmail } from "./owners";
 import { SESSION_COOKIE, SESSION_MAX_AGE_SEC, signSession, verifySession, type Session } from "./session";
 
 export async function getSession(): Promise<Session | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const session = await verifySession(token, env().SESSION_SECRET);
-  // OWNER_EMAILS から外したアカウントのクッキーは無効として扱う。
-  if (!session || !isOwnerEmail(session.email, env().ownerEmails)) return null;
+  // 削除されたユーザーのクッキーは無効として扱う
+  if (!session || !(await userExists(session.userId))) return null;
   return session;
 }
 
