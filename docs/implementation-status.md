@@ -35,13 +35,15 @@
 | PWA（ホーム画面追加に必要なmanifest等） | 現行ファイル一覧で実装を確認できない。 |
 | AI利用のユーザー別・日別回数制限 | 実装を確認できない。 |
 | 候補確認画面での自然文生成結果の編集 | 現在は手入力フォームで候補を編集する。 |
+| 回答者のGoogleログイン・本人の回答編集削除 | 未実装。現状の回答ページはログイン不要。目標仕様は全回答者のGoogleログイン必須で、Google identityに回答を紐付ける。 |
+| 回答者向けidentity-only OAuth | 未実装。現在の `LOGIN_SCOPES` は `calendar.events` / `calendar.freebusy` も要求し、初回ログイン処理はCalendar refresh tokenを前提とする。参加者向けOIDC scopesと主催者Calendar連携を分離する必要がある。 |
 
-未実装機能に着手する場合、まずProduct Ownerが優先順位と具体的な受入条件を決め、設計と脅威・プライバシー要件を更新する。タイムラインと回答者自身による編集・削除の要件は [機能仕様](features/tonton-style-scheduling/SPEC.md) を参照。30分刻みとパスワードによる編集・削除はProduct Owner確認済み。既存回答の扱い・パスワード忘れ時の復旧は決定待ち。
+未実装機能に着手する場合、まずProduct Ownerが優先順位と具体的な受入条件を決め、設計と脅威・プライバシー要件を更新する。タイムライン、Googleログイン必須の回答、本人による編集・削除の目標仕様は [機能仕様](features/tonton-style-scheduling/SPEC.md) を参照。候補上限30件、回答者Googleログイン必須、匿名旧回答の削除はProduct Owner確認済み。OAuth設定と学校Workspace管理者による許可状況は未確認。
 
 ## 仕様の決定事項・未確認事項
 
-- **作成者の範囲は決定済み:** Google アカウントでログインできる人は誰でも作成者になれる。現行コードの初回ログイン時ユーザー作成と一致する。
-- **デプロイとOAuth設定は未確認:** Vercelの公開状態、Google OAuth同意画面の審査・公開状態、実際のユーザー上限はこの確認では見ていない。
+- **利用者の範囲は決定済み:** Googleアカウントでログインできる人は誰でも作成者・回答者になれる目標。回答者はGoogle認証必須。学校Workspaceアカウントを含むが、管理者が第三者アプリを禁止している場合は管理者の許可が必要。現行実装は回答者ログインを要求しないため未対応。
+- **デプロイとOAuth設定は未確認:** Vercel公開状態、Google OAuth Audience (External)、Publishing status (In production)、verification状況、OAuth Client ID、学校Workspace側の許可状態は未確認。Google CloudのAudience/公開状態をExternal/In productionにしても、各学校Workspaceの管理ポリシーは越えられない。
 - 設計書は空き時間照合を目標にする一方、作成画面は候補日時の手入力であり、freeBusy呼び出しは見当たらない。
 - `src/app/privacy/page.tsx` はAI入力をGeminiへ送る説明を含むが、現行アプリコードでGemini呼び出しは確認できない。AI機能を実装する場合は、データの送信先・入力内容・利用条件を確認してからプライバシー表示を更新する。法的な表現を独断で変更しない。
 - `package.json` の `build` は `next build` の前に常に `scripts/migrate.mjs` を実行する。Vercelの実際のBuild設定や接続先は未確認。Buildを実行する前にDB接続先を確認し、環境ごとのMigration実行方針は別途判断する。
@@ -75,8 +77,8 @@ Product Ownerの方針: TONTONのような日程調整機能を踏襲する。�
 
 ### CCが機能変更時に守ること
 
-- 既存の「候補URL共有・ログイン不要回答・回答集計・主催者による日程確定」をTONTON型の基本フローとして保つ。
+- 候補URL共有・回答集計・主催者による日程確定を保つ。回答者はProduct Owner決定によりGoogleログイン必須とするため、TONTON型のログイン不要回答とは異なる。
 - 時間帯のタイムライン入力、一括候補設定、回答編集・削除は未実装。30分刻み、および回答登録パスワードによる編集・削除はProduct Owner確認済み。詳細仕様と実装前ブロッカーは [機能仕様](features/tonton-style-scheduling/SPEC.md) を参照。
-- 回答管理を実装する場合、機能仕様の認可・パスワード・レート制限要件と、既存回答移行・復旧方針を守る。回答の本人確認変更のため、実装前にAntigravityの独立セキュリティレビューを行う。
+- 回答管理では、サーバーで検証したGoogleユーザーIDを回答所有者として使う。回答者のidentity-only OAuthと作成者のCalendar scopesを分離する。新方式導入時に匿名旧回答・answersを削除する（Product Owner承認済み）。実装前に新しいOAuth/認可モデルをAntigravityが独立監査する。
 - 自然文入力、Googleカレンダー空き時間照合、Googleカレンダー確定登録・Meet・招待は、このアプリ固有の拡張としてTONTONの標準機能と混同しない。
 - TONTON自体を操作・自動回答する連携は対象外。TONTONに似たユーザー向け機能をこのアプリ内に実装する。
