@@ -28,7 +28,7 @@ npm run dev
 1. Vercel でこのリポジトリをインポートしてプロジェクトを作る
 2. プロジェクトの Storage から Neon を追加する。プランは Free を選ぶ（意図せず有料プランになっていないか確認）
 3. 連携すると `DATABASE_URL` などの環境変数がプロジェクトに自動で入る
-4. テーブルは本番デプロイのビルド時に自動で作成・更新される（`npm run build` の最初に `scripts/migrate.mjs` が走ります）。手元から流す場合は `npx vercel env pull .env.local` のあと `npm run db:migrate`
+4. `npm run build` は `scripts/migrate.mjs` を実行してから Next.js のビルドを行います。Previewを含む各環境でどのDBに接続するかはVercelの設定次第なので、Migrationの接続先を確認してから実行してください。手元から流す場合は `npx vercel env pull .env.local` のあと `npm run db:migrate`
 
 Neon の無料プランは、使っていないと5分で自動休止し、次のアクセスで自動的に起動します（手動の再開は不要）。
 
@@ -37,7 +37,7 @@ Neon の無料プランは、使っていないと5分で自動休止し、次�
 1. プロジェクトを作成し、Google Calendar API を有効にする
 2. OAuth 同意画面（Google Auth Platform）を作成する
    - ユーザーの種類: 外部（Gmail と Workspace の両方でログインするため）
-   - スコープ: `calendar.events` と `calendar.freebusy`
+   - スコープ: `calendar.events`（予定作成）と `calendar.freebusy`（空き時間確認。現行コードは要求しますが、freeBusy機能は未実装です）
    - 公開ステータスやOAuth審査の要件は、実際の利用範囲に合わせて確認してください。未審査状態ではログイン時に警告が表示される場合があります。
 3. 認証情報で「OAuth クライアント ID（ウェブアプリケーション）」を作成する
    - 承認済みのリダイレクト URI: `http://localhost:3000/api/auth/google/callback` と、本番の `https://<ドメイン>/api/auth/google/callback`
