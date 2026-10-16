@@ -1,10 +1,11 @@
-import { tally, type EventDetail } from "@/lib/events";
+import type { ReactNode } from "react";
+import { tally, type EventDetail, type Slot } from "@/lib/events";
 import { formatSlot } from "@/lib/time";
 
 const MARK = { yes: "○", maybe: "△", no: "×" } as const;
 
 // 候補ごとの回答状況。○の多い候補を強調する
-export function Results({ event }: { event: EventDetail }) {
+export function Results({ event, action }: { event: EventDetail; action?: (slot: Slot) => ReactNode }) {
   const rows = tally(event);
   const best = Math.max(0, ...rows.map((r) => r.score));
 
@@ -31,6 +32,7 @@ export function Results({ event }: { event: EventDetail }) {
               </p>
             )}
             {isBest && <span className="text-[0.8125rem] font-semibold text-accent">いちばん集まっています</span>}
+            {action?.(slot)}
           </li>
         );
       })}

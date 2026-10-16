@@ -2,6 +2,8 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import type { Sql } from "postgres";
 import { sql } from "./db";
+import type { CalendarEventInput } from "./calendar";
+import type { CreatedCalendarEvent } from "./calendar-api";
 import type { AnswerValue, CreateEventInput, ResponseInput } from "./validation";
 
 export type Slot = { id: number; startAt: Date; endAt: Date };
@@ -21,6 +23,13 @@ export type ResponseRow = {
   answers: Record<number, AnswerValue>;
 };
 
+export type Confirmation = {
+  slot: Slot;
+  meetUrl: string | null;
+  gcalHtmlLink: string | null;
+  calendarAccountEmail: string | null;
+};
+
 export type EventDetail = {
   id: string;
   title: string;
@@ -29,6 +38,7 @@ export type EventDetail = {
   meetEnabled: boolean;
   slots: Slot[];
   responses: ResponseRow[];
+  confirmation: Confirmation | null;
 };
 
 export class EventClosedError extends Error {
@@ -79,9 +89,21 @@ export async function listEvents(userId: number, db: Sql = sql()): Promise<Event
 // ownerUserId を渡すと、その人の調整でなければ null を返す
 export async function getEvent(id: string, ownerUserId?: number, db: Sql = sql()): Promise<EventDetail | null> {
   const [event] = await db<
-    { id: string; title: string; duration_min: number; status: "open" | "confirmed"; meet_enabled: boolean; owner_user_id: number }[]
+    {
+      id: string;
+      title: string;
+      duration_min: number;
+      status: "open" | "confirmed";
+      meet_enabled: boolean;
+      owner_user_id: number;
+      confirmed_slot_id: number | null;
+      meet_url: string | null;
+      gcal_html_link: string | null;
+      calendar_account_email: string | null;
+    }[]
   >`
-    select id, title, duration_min, status, meet_enabled, owner_user_id::int as owner_user_id
+    select id, title, duration_min, status, meet_enabled, owner_user_id::int as owner_user_id,
+      confirmed_slot_id::int as confirmed_slot_id, meet_url, gcal_html_link, calendar_account_email
     from events where id = ${id}
   `;
   if (!event) return null;
@@ -108,14 +130,26 @@ export async function getEvent(id: string, ownerUserId?: number, db: Sql = sql()
     byResponse.set(a.response_id, m);
   }
 
+  const slotList = slots.map((s) => ({ id: s.id, startAt: s.start_at, endAt: s.end_at }));
+  const confirmedSlot = slotList.find((s) => s.id === event.confirmed_slot_id);
+
   return {
     id: event.id,
     title: event.title,
     durationMin: event.duration_min,
     status: event.status,
     meetEnabled: event.meet_enabled,
-    slots: slots.map((s) => ({ id: s.id, startAt: s.start_at, endAt: s.end_at })),
+    slots: slotList,
     responses: responses.map((r) => ({ ...r, answers: byResponse.get(r.id) ?? {} })),
+    confirmation:
+      event.status === "confirmed" && confirmedSlot
+        ? {
+            slot: confirmedSlot,
+            meetUrl: event.meet_url,
+            gcalHtmlLink: event.gcal_html_link,
+            calendarAccountEmail: event.calendar_account_email,
+          }
+        : null,
   };
 }
 
@@ -153,4 +187,61 @@ export function tally(event: EventDetail): { slot: Slot; yes: number; maybe: num
     const no = values.filter((v) => v === "no").length;
     return { slot, yes, maybe, no, score: yes * 2 + maybe };
   });
+}
+
+export class EventNotConfirmableError extends Error {}
+
+export type ConfirmDeps = {
+  // 作成者のメインの Google アカウントのメールアドレスとリフレッシュトークン
+  primaryAccount: (userId: number) => Promise<{ email: string; refreshToken: string }>;
+  createCalendarEvent: (refreshToken: string, input: CalendarEventInput) => Promise<CreatedCalendarEvent>;
+};
+
+// 候補を確定し、作成者のカレンダーに予定を作って回答者を招待する。
+// 先に DB 上で確定済みにしてから Google に送ることで、二重押しによる予定の重複を防ぐ。
+// Google 側で失敗したら確定を取り消し、もう一度押せるようにする。
+export async function confirmEvent(
+  eventId: string,
+  userId: number,
+  slotId: number,
+  deps: ConfirmDeps,
+  db: Sql = sql(),
+): Promise<void> {
+  const claimed = await db<{ title: string; meet_enabled: boolean; start_at: Date; end_at: Date }[]>`
+    update events e set status = 'confirmed', confirmed_slot_id = s.id, confirmed_at = now()
+    from slots s
+    where e.id = ${eventId} and e.owner_user_id = ${userId} and e.status = 'open'
+      and s.id = ${slotId} and s.event_id = e.id
+    returning e.title, e.meet_enabled, s.start_at, s.end_at
+  `;
+  if (claimed.length === 0) throw new EventNotConfirmableError("この調整は確定できません（確定済み、または候補が見つかりません）");
+  const event = claimed[0];
+
+  try {
+    const attendees = await db<{ email: string }[]>`
+      select distinct email from responses where event_id = ${eventId} and email is not null
+    `;
+    const account = await deps.primaryAccount(userId);
+    const created = await deps.createCalendarEvent(account.refreshToken, {
+      title: event.title,
+      start: event.start_at,
+      end: event.end_at,
+      attendees: attendees.map((a) => a.email),
+      withMeet: event.meet_enabled,
+      description: "日程調整アプリで確定した予定です。",
+      requestId: `${eventId}-${slotId}`,
+    });
+    await db`
+      update events set
+        gcal_event_id = ${created.id}, meet_url = ${created.meetUrl}, gcal_html_link = ${created.htmlLink},
+        calendar_account_email = ${account.email}
+      where id = ${eventId}
+    `;
+  } catch (e) {
+    await db`
+      update events set status = 'open', confirmed_slot_id = null, confirmed_at = null
+      where id = ${eventId}
+    `;
+    throw e;
+  }
 }

@@ -3,7 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import postgres, { type Sql } from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { signInWithGoogle } from "./accounts";
-import { EventClosedError, createEvent, getEvent, listEvents, submitResponse, tally } from "./events";
+import { EventClosedError, EventNotConfirmableError, confirmEvent, createEvent, getEvent, listEvents, submitResponse, tally, type ConfirmDeps } from "./events";
 
 const url = process.env.TEST_DATABASE_URL;
 const key = randomBytes(32).toString("base64");
@@ -91,5 +91,79 @@ describe.skipIf(!url)("events（PostgreSQL）", () => {
     const slot = (await getEvent(id, alice, db))!.slots[0];
     await db`update events set status = 'confirmed' where id = ${id}`;
     await expect(submitResponse(id, answer("太郎", [[slot.id, "yes"]]), db)).rejects.toBeInstanceOf(EventClosedError);
+  });
+
+  describe("確定", () => {
+    function fakeDeps(fail = false) {
+      const calls: Parameters<ConfirmDeps["createCalendarEvent"]>[] = [];
+      const deps: ConfirmDeps = {
+        primaryAccount: async () => ({ email: "alice@gmail.com", refreshToken: "rt" }),
+        createCalendarEvent: async (...args) => {
+          calls.push(args);
+          if (fail) throw new Error("Google がエラーを返した");
+          return { id: "gcal-1", htmlLink: "https://calendar.google.com/x", meetUrl: "https://meet.google.com/abc" };
+        },
+      };
+      return { deps, calls };
+    }
+
+    async function eventWithResponses() {
+      const id = await createEvent(alice, { title: "定例", durationMin: 60, meetEnabled: true, starts }, db);
+      const [s1, s2] = (await getEvent(id, alice, db))!.slots;
+      await submitResponse(id, { ...answer("太郎", [[s1.id, "yes"], [s2.id, "no"]]), email: "taro@example.com" }, db);
+      await submitResponse(id, answer("花子", [[s1.id, "yes"], [s2.id, "yes"]]), db);
+      return { id, s1, s2 };
+    }
+
+    it("確定すると予定を作り、メールのある回答者を招待し、Meet の URL を保存する", async () => {
+      const { id, s1 } = await eventWithResponses();
+      const { deps, calls } = fakeDeps();
+      await confirmEvent(id, alice, s1.id, deps, db);
+
+      expect(calls).toHaveLength(1);
+      expect(calls[0][1]).toMatchObject({
+        title: "定例",
+        start: s1.startAt,
+        end: s1.endAt,
+        attendees: ["taro@example.com"],
+        withMeet: true,
+      });
+      const event = (await getEvent(id, alice, db))!;
+      expect(event.status).toBe("confirmed");
+      expect(event.confirmation).toMatchObject({
+        slot: { id: s1.id },
+        meetUrl: "https://meet.google.com/abc",
+        gcalHtmlLink: "https://calendar.google.com/x",
+        calendarAccountEmail: "alice@gmail.com",
+      });
+    });
+
+    it("確定済みの調整はもう一度確定できない（二重押しで予定が重複しない）", async () => {
+      const { id, s1, s2 } = await eventWithResponses();
+      const { deps, calls } = fakeDeps();
+      await confirmEvent(id, alice, s1.id, deps, db);
+      await expect(confirmEvent(id, alice, s2.id, deps, db)).rejects.toBeInstanceOf(EventNotConfirmableError);
+      expect(calls).toHaveLength(1);
+    });
+
+    it("Google 側で失敗したら確定を取り消し、もう一度押せる", async () => {
+      const { id, s1 } = await eventWithResponses();
+      await expect(confirmEvent(id, alice, s1.id, fakeDeps(true).deps, db)).rejects.toThrow("Google");
+      const event = (await getEvent(id, alice, db))!;
+      expect(event.status).toBe("open");
+      expect(event.confirmation).toBeNull();
+      await confirmEvent(id, alice, s1.id, fakeDeps().deps, db);
+      expect((await getEvent(id, alice, db))!.status).toBe("confirmed");
+    });
+
+    it("他人の調整や、別の調整の候補では確定できない", async () => {
+      const { id, s1 } = await eventWithResponses();
+      const other = await createEvent(alice, { title: "別", durationMin: 30, meetEnabled: false, starts }, db);
+      const foreign = (await getEvent(other, alice, db))!.slots[0];
+      const { deps, calls } = fakeDeps();
+      await expect(confirmEvent(id, bob, s1.id, deps, db)).rejects.toBeInstanceOf(EventNotConfirmableError);
+      await expect(confirmEvent(id, alice, foreign.id, deps, db)).rejects.toBeInstanceOf(EventNotConfirmableError);
+      expect(calls).toHaveLength(0);
+    });
   });
 });

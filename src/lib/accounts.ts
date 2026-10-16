@@ -124,3 +124,15 @@ export async function getRefreshToken(
   if (!row) throw new Error(`連携されていないアカウントです: ${email}`);
   return decrypt(row.refresh_token_enc, key);
 }
+
+export async function getPrimaryAccount(
+  userId: number,
+  db: Sql = sql(),
+  key: string = env().TOKEN_ENCRYPTION_KEY,
+): Promise<{ email: string; refreshToken: string }> {
+  const [row] = await db<{ email: string; refresh_token_enc: string }[]>`
+    select email, refresh_token_enc from google_accounts where user_id = ${userId} and is_primary
+  `;
+  if (!row) throw new Error("メインの Google アカウントが見つかりません");
+  return { email: row.email, refreshToken: decrypt(row.refresh_token_enc, key) };
+}
