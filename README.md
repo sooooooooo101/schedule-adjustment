@@ -28,7 +28,7 @@ npm run dev
 1. Vercel でこのリポジトリをインポートしてプロジェクトを作る
 2. プロジェクトの Storage から Neon を追加する。プランは Free を選ぶ（意図せず有料プランになっていないか確認）
 3. 連携すると `DATABASE_URL` などの環境変数がプロジェクトに自動で入る
-4. テーブルは本番デプロイのビルド時に自動で作成・更新される（`npm run build` の最初に `scripts/migrate.mjs` が走る。プレビューでは実行しない）。手元から流す場合は `npx vercel env pull .env.local` のあと `npm run db:migrate`
+4. `npm run build` は `scripts/migrate.mjs` を実行してから Next.js のビルドを行います。Preview を含む各環境でどのDBに接続するかはVercelの設定次第なので、Migrationの接続先を確認してから実行してください。手元から流す場合は `npx vercel env pull .env.local` のあと `npm run db:migrate`
 
 Neon の無料プランは、使っていないと5分で自動休止し、次のアクセスで自動的に起動します（手動の再開は不要）。
 
