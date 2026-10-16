@@ -4,8 +4,21 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import postgres from "postgres";
 
-const url = process.env.DATABASE_URL;
+// ビルド時（npm run build）にも実行する。プレビュー環境も本番と同じ DB を使うため、
+// マージ前の変更が本番 DB に入らないよう、Vercel では本番デプロイのときだけ適用する。
+const onVercel = Boolean(process.env.VERCEL);
+if (onVercel && process.env.VERCEL_ENV !== "production") {
+  console.log(`マイグレーションを省略します（Vercel の ${process.env.VERCEL_ENV} 環境）`);
+  process.exit(0);
+}
+
+// DDL は接続プールを通さない直接接続で流す（Neon 連携で DATABASE_URL_UNPOOLED が入る）
+const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
 if (!url) {
+  if (!onVercel && process.env.npm_lifecycle_event === "build") {
+    console.log("DATABASE_URL がないため、マイグレーションを省略します（手元でのビルド）");
+    process.exit(0);
+  }
   console.error("DATABASE_URL が設定されていません");
   process.exit(1);
 }
