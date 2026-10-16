@@ -54,7 +54,10 @@ function Login({ message }: { message?: string }) {
           <a href="/api/auth/google" className="button-primary pressable">
             Google でログイン
           </a>
-          <p className="section-footer text-center">カレンダーの空き確認と予定作成の権限を求めます</p>
+          <p className="section-footer text-center">
+            カレンダーの空き確認と予定作成の権限を求めます・
+            <Link href="/privacy" className="underline">プライバシーポリシー</Link>
+          </p>
         </div>
       </div>
     </>
