@@ -5,7 +5,7 @@
 
 ## 1. 目的
 
-候補日時を日付ごとの時間帯タイムラインから作り、複数日に一括適用できるようにする。回答者はGoogleアカウントでログインし、本人の回答を編集・削除できる。
+候補日時を日付ごとの時間帯タイムラインから作り、複数日に一括適用できるようにする。ユーザーはメールアドレスでアプリに登録し、本人の回答を編集・削除できる。Google CalendarやSlackは後から任意で連携できる設計にする。
 
 TONTONの画面や内部実装を複製せず、このアプリのイベント・候補・回答の流れに統合する。
 
@@ -13,9 +13,9 @@ TONTONの画面や内部実装を複製せず、このアプリのイベント�
 
 - 候補タイムラインは30分刻み、イベントあたりの候補上限は30件。
 - 同じ時間範囲を複数の選択日に一括適用できる。
-- 回答の作成・編集・削除にはGoogleログインを必須にする。学校のGoogle Workspaceアカウントも対象にする。
-- パスワードを回答管理に使わない。Google認証済みユーザーは自分の回答を編集・削除できる。
-- Google Workspace管理者がアプリをブロックしている場合、利用者やアプリ側でその管理ポリシーを回避しない。管理者に許可を依頼する。
+- 回答の作成・編集・削除には、メールアドレスを用いたアプリ独自の認証を必須にする。具体的な認証方式（確認リンク/コード等）は実装前に決定する。
+- 回答管理の所有者はアプリ内ユーザーIDで識別する。メールアドレスや回答者が入力した名前だけで所有権を判断しない。
+- Google Calendar/Slack連携は任意の後付け機能とし、組織管理者の制限を回避しない。連携できない場合も基本の日程調整は利用可能にする。
 - 現在の匿名回答は、新方式の導入時に削除してよい（Product Owner承認済み）。イベント自体は削除しない。
 - TONTON自体の自動操作・連携はしない。
 
@@ -33,40 +33,40 @@ TONTONの画面や内部実装を複製せず、このアプリのイベント�
 8. 既存の手入力候補編集を維持し、タイムライン生成候補も作成前に確認・修正できる。
 9. 上限30件では複数日・長時間帯の一括適用が拒否されることがある。上限はProduct Owner決定どおり30件とし、UIで生成数を事前表示する。
 
-### 3.2 回答者: Googleログインと新規回答
+### 3.2 回答者: メール認証と新規回答
 
-1. 回答の新規登録・編集・削除前にGoogleログインを必須とする。未ログイン時はログインへ案内し、元のイベントページへ戻せる。
-2. GoogleのOIDC IDトークンをサーバーで検証し、`sub` をGoogleアカウントの安定した本人識別子として扱う。メールアドレスの一致や回答者が入力した名前・メールだけで所有権を判断しない。
-3. 参加者は名前必須、招待用メールとコメントは任意、候補ごとの○△×を回答する。回答所有者はセッションから取得し、クライアント入力で指定できない。
-4. 同じGoogleユーザーはイベントごとに1回答とする。再回答時は自分の既存回答の編集に案内し、二重集計・招待先重複を防ぐ。
-5. 参加者の本人確認に必要なOAuthスコープは `openid`, `email`, `profile` のみとする。回答者へCalendarスコープを要求しない。
-6. 学校アカウントを含む外部Googleアカウントを対象とするため、OAuth audienceはExternalにする。テスト限定ではなく一般利用へ公開する際はIn productionと必要なGoogle OAuth verificationを完了する。実設定は未確認。
-7. Workspace側のブロックが残る場合、学校のGoogle Workspace管理者がOAuth client IDと必要なGoogleデータアクセスを許可する必要がある。アプリ側から強制的に突破する手段はない。
+1. 回答の新規登録・編集・削除前にアプリのメール認証を必須とする。未認証時はメール認証へ案内し、完了後に元のイベントページへ戻せる。
+2. アカウントはサーバー側で確認済みのメール認証セッションに結び付ける。回答所有者はセッションから取得し、クライアント入力で指定できない。
+3. 参加者は表示名必須、招待用メールとコメントは任意、候補ごとの○△×を回答する。ログイン用メールと任意の招待用メールは用途を区別し、不要な重複保存を避ける。
+4. 同じアプリ内ユーザーはイベントごとに1回答とする。再回答時は自分の既存回答の編集に案内し、二重集計・招待先重複を防ぐ。
+5. 参加者の認証はGoogle OAuthやCalendarスコープに依存しない。メール配信事業者・配信方法・レート制限・セッション方式は実装前に決める。
+6. 学校の受信箱が認証メールを受け取れることを前提とするが、学校側の迷惑メール判定や配信制限は実環境で未検証。
 
 ### 3.3 回答者: 編集・削除
 
-1. イベントがopenの間、Google認証済み回答者は自分の回答を編集・削除できる。イベント確定後は変更不可。
+1. イベントがopenの間、メール認証済みユーザーは自分の回答を編集・削除できる。イベント確定後は変更不可。
 2. サーバー側でセッションの本人IDと回答の所有者を比較する。改ざんしたresponse/event IDで他人・別イベントの回答を読取・変更できない。
 3. 編集では名前、任意メール、コメント、全候補の○△×を更新できる。回答とanswersを一貫したトランザクションで保存する。
 4. 削除は確認後に対象回答とanswersのみ削除し、他回答・イベントは残す。
 5. 主催者のイベント編集権限は回答者本人の回答変更権限を自動的に与えない。主催者による他人の回答削除は対象外。
 6. 成功・失敗時にIDトークン、セッショントークン、個人情報をログに記録しない。
 
-## 4. Google OAuth・アクセス制御
+## 4. 認証と任意の外部サービス連携
 
-- OIDCの `openid email profile` とCalendar APIスコープを分離する。Calendar API（`calendar.events`, `calendar.freebusy`）はGoogle Calendarを使う作成者機能にのみ要求し、回答者ログイン時に要求しない。
-- 認証はサーバー側で検証済みのGoogle `sub` と既存の安全なセッションに紐付ける。メールアドレスを本人IDとして扱わない。
-- OAuth state/PKCE、IDトークンの署名・issuer・audience・expiry・email_verifiedを検証する。アカウント連携時も既存の所有者分離を維持する。
-- OAuthアプリのExternal/In production設定やverificationを整えても、学校Workspaceの管理者が第三者アプリを禁止している場合は許可されない。管理者の許可が必要。
-- 具体的なOAuth Client ID、Google Cloud Consent Screen設定、学校Workspaceのポリシー、本番の許可状態はNOT VERIFIED。
-- アプリの表示名・公開URLがそのままOAuth Client IDではない。管理者への許可依頼にはGoogle Cloud ConsoleのCredentials画面にあるOAuth Client IDを使う。Client Secretは共有しない。
+- アプリの認証と外部サービス連携を分離する。初期登録・ログインではGoogle OAuth、Google Calendar API、Slack APIを要求しない。
+- MVPではGoogle Calendar/Slackの自動連携を必須にしない。日程調整・回答・確定は外部OAuthなしで完結する。
+- 将来の連携はユーザーが設定画面から明示的に開始し、Google Calendar/Slackごとに必要最小限の権限だけを要求する。連携情報はアプリ内ユーザーIDに紐付け、ログイン識別子として流用しない。
+- OAuthアクセストークン/リフレッシュトークンを保存する場合は暗号化し、ログへ出さず、連携解除時に失効・削除する。
+- Workspace管理者がGoogle Calendar OAuthを許可しない場合、連携機能だけを利用不可とし、基本の日程調整を妨げない。Slackも各ワークスペースのアプリ承認ポリシーに従う。
+- Calendar自動登録の代替手段（.ics、カレンダー追加リンク、任意OAuthによる自動登録）の採用は別途調査・Product Owner決定待ち。
+- 外部サービスのClient ID/Secretや本番OAuth設定はNOT VERIFIED。Client Secretを共有・ログ出力しない。
 
 ## 5. 既存回答の移行
 
 - 現在の回答はGoogleアカウント所有者と紐付いていないため、新方式導入時に既存の全匿名回答とanswersを削除する。これはProduct Owner承認済み。
-- eventsとslotsは保持する。既存回答を誤ったGoogleユーザーへ紐付けたり、名前・メールの一致で推測して移行しない。
+- eventsとslotsは保持する。既存回答を誤ったアプリ内ユーザーへ紐付けたり、名前・メールの一致で推測して移行しない。
 - Migrationは実行対象の回答件数をログへ個人情報なしで記録し、回答・answersの削除を一貫したトランザクションで実施する。Migration適用前に環境と対象DBを確認する。コード変更だけでProduction DBを直接操作しない。
-- Googleアカウントの復旧はGoogleのアカウント復旧に委ねる。ログイン不能な場合、本人確認なしに回答へのアクセスを付与しない。
+- メール認証のアカウント復旧は採用する認証方式に従う。ログイン不能な場合、本人確認なしに回答へのアクセスを付与しない。
 
 ## 6. 受入条件
 
@@ -79,21 +79,21 @@ TONTONの画面や内部実装を複製せず、このアプリのイベント�
 - AC-T06: 保存候補は既存の回答・集計・確定処理で利用できる。
 
 ### 回答認証・管理
-- AC-R01: 未ログインでは回答を登録・編集・削除できず、Googleログイン後に元のイベントへ戻れる。
+- AC-R01: 未ログインでは回答を登録・編集・削除できず、メール認証後に元のイベントへ戻れる。
 - AC-R02: Calendar scopeを許可していないGoogleアカウントでも、本人認証だけで回答できる。
 - AC-R03: 認証済みユーザーは自分のイベントごとに1回答を作成でき、再登録で二重回答は作られない。
-- AC-R04: 正しいGoogleユーザーのみ自分の回答を読取・編集・削除できる。emailや名前の改ざん、別ユーザー・別イベントIDでは拒否される。
+- AC-R04: 正しいアプリ内ユーザーのみ自分の回答を読取・編集・削除できる。メールアドレスや名前の改ざん、別ユーザー・別イベントIDでは拒否される。
 - AC-R05: 削除では対象回答とanswersだけが消え、集計へ反映される。他回答とイベントは残る。
 - AC-R06: イベント確定後は回答を編集・削除できない。
 - AC-R07: IDトークンやセッション秘密情報がURL、クライアント公開データ、ログへ漏れない。
 - AC-R08: 導入Migrationでは既存の匿名回答とanswersのみ削除され、eventsとslotsは保持される。
-- AC-R09: OAuth audience/公開設定がExternal/In productionで、identity-onlyログインに不要なCalendar scopeを要求しない。
-- AC-R10: Workspace管理者がアプリを禁止している場合、利用者に管理者への許可申請方法を表示する。ポリシー回避を試みない。
+- AC-R09: アプリ認証がGoogle OAuthに依存せず、Google Calendar/Slackの任意連携が未設定でもMVPを利用できる。
+- AC-R10: Google Calendar/Slack連携が組織ポリシーで拒否された場合も、アプリ内の認証・日程調整・回答・確定が利用できる。
 
 ## 7. 実装・レビュー手順
 
-1. この仕様とGoogle OAuthの現在設定を照合し、OAuth Client ID/redirect URI/scopes/statusを確認する。秘密鍵・Client Secretを出力しない。
-2. 実装前にAntigravityの独立セキュリティ・アーキテクチャ監査を再実施する。以前のパスワード認証モデルへの監査結果はこの仕様には適用せず、特にidentity-only認証、Workspace block、response ownership、既存回答削除をレビューする。
+1. メール認証方式、配信基盤、セッション、レート制限、アカウント復旧を設計する。外部OAuth連携は別機能として扱う。
+2. 実装前にAntigravityの独立セキュリティ・アーキテクチャ監査を再実施する。以前のパスワード認証モデルへの監査結果はこの仕様には適用せず、特にメール認証、セッション管理、回答所有権、既存回答削除、外部連携の分離をレビューする。
 3. Antigravityが設計をPASSするまでClaude Codeは認証・Migration実装を始めない。Google Cloud管理者許可が必要な場合、アプリ側で回避策を追加しない。
 4. レビュー通過後、Claude Codeが実装・テストし、CodexがAcceptance Criteria/Architecture Driftをレビュー、Antigravityが実装を独立再監査する。
 5. PR mergeとdeployはProduct Ownerが判断する。
@@ -101,17 +101,17 @@ TONTONの画面や内部実装を複製せず、このアプリのイベント�
 ## 8. Claude Code実装引継ぎ
 
 ### Objective
-30分刻み・上限30候補のタイムラインと一括設定を加える。回答は全員Googleログイン必須とし、回答者が自分の回答を編集・削除できるようにする。匿名回答は導入時に削除する。
+30分刻み・上限30候補のタイムラインと一括設定を加える。回答は全員メール認証必須とし、回答者が自分の回答を編集・削除できるようにする。匿名回答は導入時に削除する。
 
 ### Relevant Files
-`src/app/events/new/`, `src/app/e/[id]/`, `src/app/api/auth/google/`, `src/lib/google.ts`, `src/lib/accounts.ts`, `src/lib/auth.ts`, `src/lib/events.ts`, `src/lib/validation.ts`, `db/migrations/`, `src/app/privacy/page.tsx`
+`src/app/events/new/`, `src/app/e/[id]/`, `src/lib/auth.ts`, `src/lib/events.ts`, `src/lib/validation.ts`, `db/migrations/`, `src/app/privacy/page.tsx`
 
 ### Constraints / Security
-- identity-only OAuth scopesとCalendar scopesを分離する。参加者にCalendarアクセスを要求しない。
-- Ownerはemail/nameではなく、サーバー側で確認されたGoogle identityに結び付ける。
-- Workspace管理者のアクセス制御を回避しない。OAuth Client ID/Client Secretをログ・回答に含めない。
+- アプリ内認証を外部連携から分離し、Google/Slack OAuthをMVPのログインに使わない。
+- Ownerはサーバー側で確認したアプリ内ユーザーIDに結び付ける。
+- 外部連携で組織管理者のアクセス制御を回避しない。OAuth secretや認証トークンをログ・回答に含めない。
 - 既存の匿名回答を削除するMigrationを追加するが、events/slotsは維持する。ProductionでのMigration実行は別途環境確認後。
 - 仕様にないAuth/DB/Calendar設計判断や依存追加をせず、重大な矛盾があれば止めて提案する。
 
 ### Required Tests / Definition of Done
-AC-T01〜T06/AC-R01〜R10をテストで検証し、Migrationで対象行だけが削除されること、identity-onlyサインインで回答できること、Calendar未許可でも参加者ログインできること、別ユーザーアクセスが拒否されることを確認する。プライバシー表示更新、Antigravity独立再監査、Codex Architecture Drift Reviewを完了する。
+AC-T01〜T06/AC-R01〜R10をテストで検証し、Migrationで対象行だけが削除されること、メール認証で回答できること、Google Calendar/Slack未連携でも全MVP機能が使えること、別ユーザーアクセスが拒否されることを確認する。プライバシー表示更新、Antigravity独立再監査、Codex Architecture Drift Reviewを完了する。
