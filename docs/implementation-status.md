@@ -35,14 +35,14 @@
 | PWA（ホーム画面追加に必要なmanifest等） | 現行ファイル一覧で実装を確認できない。 |
 | AI利用のユーザー別・日別回数制限 | 実装を確認できない。 |
 | 候補確認画面での自然文生成結果の編集 | 現在は手入力フォームで候補を編集する。 |
-| 回答者のGoogleログイン・本人の回答編集削除 | 未実装。現状の回答ページはログイン不要。目標仕様は全回答者のGoogleログイン必須で、Google identityに回答を紐付ける。 |
-| 回答者向けidentity-only OAuth | 未実装。現在の `LOGIN_SCOPES` は `calendar.events` / `calendar.freebusy` も要求し、初回ログイン処理はCalendar refresh tokenを前提とする。参加者向けOIDC scopesと主催者Calendar連携を分離する必要がある。 |
+| 回答者のGoogleログイン・本人の回答編集削除 | 未実装。現状の回答ページはログイン不要。目標仕様は主催者・回答者ともメールアドレスによるアプリ内認証必須で、回答はアプリ内ユーザーIDに紐付ける。 |
+| メール認証と任意連携の分離 | 未実装。現行のGoogle OAuthログインとCalendar権限を切り離し、アプリ内認証を先に成立させる必要がある。Calendar/Slackは後付けの任意連携とする。 |
 
-未実装機能に着手する場合、まずProduct Ownerが優先順位と具体的な受入条件を決め、設計と脅威・プライバシー要件を更新する。タイムライン、Googleログイン必須の回答、本人による編集・削除の目標仕様は [機能仕様](features/tonton-style-scheduling/SPEC.md) を参照。候補上限30件、回答者Googleログイン必須、匿名旧回答の削除はProduct Owner確認済み。OAuth設定と学校Workspace管理者による許可状況は未確認。
+未実装機能に着手する場合、まずProduct Ownerが優先順位と具体的な受入条件を決め、設計と脅威・プライバシー要件を更新する。タイムライン、メール認証必須の回答、本人による編集・削除の目標仕様は [機能仕様](features/tonton-style-scheduling/SPEC.md) を参照。候補上限30件、メール認証によるユーザー識別、匿名旧回答の削除はProduct Owner確認済み。メール認証方式と外部連携方針の具体仕様は未決。
 
 ## 仕様の決定事項・未確認事項
 
-- **利用者の範囲は決定済み:** Googleアカウントでログインできる人は誰でも作成者・回答者になれる目標。回答者はGoogle認証必須。学校Workspaceアカウントを含むが、管理者が第三者アプリを禁止している場合は管理者の許可が必要。現行実装は回答者ログインを要求しないため未対応。
+- **利用者認証の方向性は決定済み:** Googleアカウントでログインできる人は誰でも作成者・回答者になれる目標。回答者はGoogle認証必須。学校Workspaceアカウントを含むが、管理者が第三者アプリを禁止している場合は管理者の許可が必要。現行実装は回答者ログインを要求しないため未対応。
 - **デプロイとOAuth設定は未確認:** Vercel公開状態、Google OAuth Audience (External)、Publishing status (In production)、verification状況、OAuth Client ID、学校Workspace側の許可状態は未確認。Google CloudのAudience/公開状態をExternal/In productionにしても、各学校Workspaceの管理ポリシーは越えられない。
 - 設計書は空き時間照合を目標にする一方、作成画面は候補日時の手入力であり、freeBusy呼び出しは見当たらない。
 - `src/app/privacy/page.tsx` はAI入力をGeminiへ送る説明を含むが、現行アプリコードでGemini呼び出しは確認できない。AI機能を実装する場合は、データの送信先・入力内容・利用条件を確認してからプライバシー表示を更新する。法的な表現を独断で変更しない。
