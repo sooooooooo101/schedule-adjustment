@@ -1,16 +1,14 @@
 # AI handoff — MVP
 
-Task: Verify low-token GitHub handoff among ChatGPT → Claude Code (cloud) → Codex.
-Status: CLAUDE COMPLETE
+Task: Validate GitHub-based, low-context handoff between AI tools.
+Status: CLAUDE COMPLETE / CHATGPT REVIEWED (Codex session not yet run)
 Branch: `mvp/token-efficient-ai-handoff`
-From: Claude Code (cloud)
-Next owner: Codex
-Changed paths: `.ai/handoff.md`
-Checks: Branch checkout confirmed (HEAD `5d383d9`, tracking origin); `git status` clean before edit; `git diff --name-only` empty. Read only `CLAUDE.md` and this file (`AGENTS.md` not opened, per owner's no-extra-reads instruction). No app tests/builds/DB/deploy run.
-Risks: `CLAUDE.md` says "follow AGENTS.md" but this test forbade extra reads — the two instructions conflict; owner should decide which wins. PR #6 (`AGENTS.md`) untouched.
+From: Claude Code (cloud) → ChatGPT (GitHub review)
+Next owner: Codex or Product Owner
 
-Next actions:
-1. Codex: review only the PR diff and this handoff. Report whether changes are isolated, context is sufficient, and claimed checks match evidence. Do not merge.
-2. Owner: approve further automation only after the handoff test.
+Claude result: commit `702f214` pushed; only `.ai/handoff.md` changed. Claude reports reading `CLAUDE.md` and this file, clean pre-edit worktree, and no tests/builds/DB/deployment.
+ChatGPT verification: commit, changed paths and PR #7 diff checked on GitHub. Claude's local shell activity was not independently observed. `CLAUDE.md` was clarified in `da3dabc`: handoff-only smoke tests may omit `AGENTS.md`, but code/design work must read it.
 
-Rules: <=150 words for future handoff updates; avoid secrets and broad repo scans.
+Next: Codex may independently review PR #7's diff and this handoff without full-repo scan. Product Owner decides whether to merge or automate further. No app tests or deployment performed.
+
+Constraints: update handoff <=150 words, never include secrets, avoid broad file reads, no automatic merge/deploy.
