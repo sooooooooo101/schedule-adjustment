@@ -2,7 +2,9 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getEvent } from "@/lib/events";
+import { googleCalendarAddUrl } from "@/lib/calendar";
 import { formatSlot } from "@/lib/time";
+import { ConfirmedCard } from "../../events/_confirmed";
 import { Results } from "../../events/_results";
 import { ResponseForm } from "./response-form";
 
@@ -39,6 +41,37 @@ async function RespondContent({
       </p>
     </div>
   );
+
+  if (event.confirmation) {
+    const { slot, meetUrl } = event.confirmation;
+    return (
+      <div className="flex flex-col gap-8">
+        {header}
+        <ConfirmedCard
+          confirmation={event.confirmation}
+          links={[
+            {
+              href: googleCalendarAddUrl({
+                title: event.title,
+                start: slot.startAt,
+                end: slot.endAt,
+                details: meetUrl ? `Google Meet: ${meetUrl}` : undefined,
+              }),
+              label: "Google カレンダーに追加",
+            },
+            { href: `/e/${event.id}/calendar.ics`, label: "その他のカレンダーに追加（.ics）", download: true },
+          ]}
+        />
+        <p className="section-footer -mt-6">
+          回答時にメールアドレスを入れた方には、カレンダーの招待も届いています。
+        </p>
+        <section className="flex flex-col gap-1.5">
+          <h2 className="section-header">みんなの回答</h2>
+          <Results event={event} />
+        </section>
+      </div>
+    );
+  }
 
   if (done || event.status !== "open") {
     return (
