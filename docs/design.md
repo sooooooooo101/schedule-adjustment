@@ -7,7 +7,7 @@
 
 この文書は目標仕様であり、現在利用できる機能の一覧ではない。機能の実装状態はコードと実装状況文書で照合する。
 
-作成者の日程調整の手間をなくすためのツール。Google アカウントでログインできる人は誰でも作成者になれる。販売・App Store 配布はしない。調整への回答は、共有リンクを受け取った人がGoogleアカウントでログインして行う。学校のGoogle Workspaceアカウントも対象とするが、Workspace管理者による制限は管理者の許可が必要。
+作成者と参加者がメールアドレスでアプリに登録し、グループの日程調整を行うツール。Google CalendarやSlackはアプリ認証と分離し、利用者が後から任意で連携できる設計にする。販売・App Store配布はしない。
 
 解決したいこと:
 
@@ -19,17 +19,14 @@
 
 ### やること（MVP）
 
-1. 作成者が自然文で依頼し、AI が自分の Google カレンダーの空きと照合して候補日時を出す
-2. 候補を確認・修正して調整ページを作り、共有リンクを LINE などで送る
-3. 回答者はリンクを開き、Googleログインして名前を入れて回答する（学校Workspaceアカウントを含む。組織の管理者がブロックしている場合は管理者へ許可を依頼）
-   - 自然文で回答（例:「火曜の夜と木曜ならいける」）→ AI が ○△× に変換 → 本人が確認して送信
-   - または候補ごとに ○△× をタップ
+1. 作成者が候補日時を手入力、または自然文から作り、内容を確認・修正する。MVPではGoogle Calendarの空き時間を自動取得しない
+2. 候補を確認・修正して調整ページを作り、共有リンクをLINEなどで送る
+3. 回答者はリンクを開き、メールアドレスでアプリに登録・ログインして回答する
+   - 自然文で回答（例:「火曜の夜と木曜ならいける」）→ AIが○△×に変換 → 本人が確認して送信
+   - または候補ごとに○△×をタップ
 4. 作成者は回答一覧を見て候補を確定する
-5. 確定すると次をまとめて実行する
-   - 作成者の Google カレンダーに予定を作成
-   - Google Meet の URL を自動発行（任意でオフ）
-   - メールアドレスを入れた回答者に Google カレンダーの招待を送信
-   - 回答者向けの確定ページに日時・Meet URL・「カレンダーに追加」（Google カレンダー用リンクと .ics）を表示
+5. 確定後はアプリ上で日時を表示し、カレンダー登録の代替方法（.icsやGoogle Calendar追加リンクなど）は別チャットの調査結果を受けて決める。MVPの確定処理でCalendar APIは呼び出さない
+6. Meet URLは自動発行せず、必要なら作成者が外部会議URLを入力できる方式を検討する
 
 ### やらないこと
 
@@ -53,35 +50,47 @@
 
 ### 回答者側
 
-1. リンクを開く → Googleログイン → 名前（必須）、メールアドレス（任意）を入力
-2. 自然文で答えるか、候補ごとにタップで答える
-3. 自然文の場合は AI の変換結果を ○△× で表示し、本人が修正してから送信
-4. Googleログインした本人は自分の回答を編集・削除できる。確定後の回答は変更できない
+1. リンクを開く → メールアドレスで登録・ログイン → 表示名を入力
+2. 自然文で答えるか、候補ごとにタップで回答する
+3. 自然文の場合はAIの変換結果を○△×で表示し、本人が修正してから送信
+4. アプリ内アカウントの本人は自分の回答を編集・削除できる。確定後の回答は変更できない
 5. 確定後に同じリンクを開くと確定ページになる
 
 ## 4. 構成（案）
 
 | 層 | 採用案 | 理由 |
 |---|---|---|
-| フロント / API | Next.js（App Router）on Vercel | スマホ向け Web とサーバー処理を1つにまとめられる。無料枠で足りる見込み |
-| データベース | Neon（Postgres、Vercel Marketplace 経由） | 無料枠で足りる。使わないときは自動休止し、アクセスで自動起動する（Supabase 無料プランの「7日で一時停止」を避けるため変更） |
-| 認証 | 作成者・回答者ともGoogleログイン必須。GmailとWorkspaceアカウントを対象にする。各ユーザーは複数アカウントを連携可能 | Workspace管理者の制限は管理者による許可が必要 |
-| AI | Gemini API（Flash-Lite 系、無料枠） | 自然文 → 候補日時、自然文回答 → ○△× の2用途。JSON の形を固定して出力させる。接続部分は差し替え可能にする |
-| カレンダー | Google Calendar API（freeBusy で空き取得、events.insert で作成） | Meet は conferenceData で発行、招待は sendUpdates=all |
+| フロント / API | Next.js（App Router）on Vercel | スマホ向けWebとサーバー処理を1つにまとめる |
+| データベース | Neon（Postgres、Vercel Marketplace経由） | 現行構成を維持する |
+| 認証 | メールアドレスを使ったアプリ内認証。具体方式は未決 | Google Workspace OAuth管理ポリシーにアプリの基本利用を依存させない |
+| AI | Gemini API（Flash-Lite系、無料枠） | 自然文→候補日時、自然文回答→○△×の2用途。接続部分は差し替え可能にする |
+| 外部連携 | Google Calendar / Slackは任意・後付け | 未連携でもMVPの日程調整を完結させる |
 
 タイムゾーンは Asia/Tokyo 固定とする。
 
-### 複数 Google アカウント
+### 外部連携の設計方針
 
-作成者は個人の Gmail と Google Workspace の両方を使うため、複数アカウントを連携できるようにする。
+- アプリ内ユーザーIDと外部サービスのアカウント・トークンを分離して保存する。
+- 連携は設定画面から利用者が明示的に開始・解除できるようにする。
+- Google Calendar/Slackごとに必要最小限の権限を要求し、連携できない場合も基本機能を妨げない。
+- トークンを保存する場合は暗号化し、ログに記録しない。連携解除時のトークン失効・削除を設計する。
+- カレンダー自動登録の具体方式は別途調査・Product Owner決定待ち。
 
-- 空き確認: 連携中のすべてのアカウントの freeBusy を合算する
-- 予定作成: 「メイン」のアカウント（最初に連携したもの）のカレンダーに作る。確定時に変更できるようにする
-- リフレッシュトークンは AES-256-GCM で暗号化して保存する
+タイムゾーンは Asia/Tokyo 固定とする。
+
+### 任意のGoogle Calendar連携（将来機能）
+
+- 1ユーザーが複数のGoogleアカウントを連携できるかは後続仕様で決める。
+- Google Calendarの空き確認・予定作成・Meet発行はMVPに含めない。
+- 組織管理者がOAuth連携を許可しない場合、その連携機能だけを利用不可とし、アプリ本体を利用可能にする。
 
 ### OAuth スコープ
 
-Googleログインには `openid`, `email`, `profile` のみを使う。Google Calendarを使う作成者機能では、必要な場合だけ `calendar.events`（予定作成・Meet・招待）と `calendar.freebusy`（空き確認）を別途要求する。回答者のログインにはCalendar scopeを要求しない。OAuth audienceはExternalを目標にし、一般公開時はIn productionと必要なGoogle verificationを完了する。学校Workspace管理者が第三者アプリを制限している場合、OAuth Client IDの許可を管理者へ依頼する。現在のGoogle Cloud設定は未確認。
+- アプリ本体の登録・ログインにはGoogle OAuthを使わない。
+- Google Calendar連携では、ユーザーが連携操作を開始した時だけ、必要な権限を説明して同意を求める。
+- Calendarの権限は利用目的ごとに最小化する。空き時間確認・予定作成・Meet発行を同時に前提とせず、採用する機能ごとに必要scopeを確認する。
+- Google Workspace管理者がアプリをブロックまたは未設定としている場合、OAuthを強制せず、手動での日程調整と確定を利用可能にする。
+- Google CloudのOAuth Client ID、公開状態、verification、本番設定はNOT VERIFIED。
 
 ### UI の方針
 
@@ -96,10 +105,10 @@ Apple の Human Interface の考え方（apple-design スキル）に沿う。
 
 ## 5. データモデル（案）
 
-- events: id, title, duration_min, status（open / confirmed）, confirmed_slot_id, meet_enabled, meet_url, gcal_event_id, created_at
+- events: id, title, duration_min, status（open / confirmed）, confirmed_slot_id, meet_url（任意）, created_at
 - slots: id, event_id, start_at, end_at
-- responses: id, event_id, respondent_user_id（Google認証済みユーザー）, name, email（任意）, comment, created_at（event_id + respondent_user_idで一意）
-- answers: response_id, slot_id, value（yes / maybe / no）
+- users: id, verified_email, created_at; responses: id, event_id, respondent_user_id（アプリ内ユーザー）, name, email（任意）, comment, created_at（event_id + respondent_user_idで一意）
+- answers: response_id, slot_id, value（yes / maybe / no）; user_integrations: user_id, provider, external_account_id, encrypted_tokens, scopes, connected_at
 
 共有リンクは推測できない長い ID を使う（例: `/e/{ランダム22文字}`）。
 
@@ -142,7 +151,7 @@ Apple の Human Interface の考え方（apple-design スキル）に沿う。
 
 ### 回答編集・削除
 
-Google認証済みの回答者は本人の回答を編集・削除できる。サーバーで確認したGoogleユーザーIDを所有者として使い、名前やメール一致だけで認可しない。確定後は変更不可。既存の匿名回答は新方式の導入時に削除する。詳細は [TONTON型機能仕様](features/tonton-style-scheduling/SPEC.md) を参照。
+メールで認証されたアプリ内ユーザーは本人の回答を編集・削除できる。サーバー側のアプリ内ユーザーIDで所有者を確認し、名前や回答フォームのメール一致だけで認可しない。確定後は変更不可。既存の匿名回答は新方式の導入時に削除する。詳細は [TONTON型機能仕様](features/tonton-style-scheduling/SPEC.md) を参照。
 
 ## 8. 決定事項と未決事項
 
@@ -166,9 +175,9 @@ Google認証済みの回答者は本人の回答を編集・削除できる。�
 
 ## 9. 実装の順番（案）
 
-1. 雛形作成、作成者の Google ログイン、DB 接続（完了）
+1. 雛形作成、作成者のGoogleログイン、DB接続（完了。目標仕様ではメール認証へ変更する）
 2. 調整の作成（まずは手入力の候補で）→ 共有リンク → 回答 → 回答一覧（完了）
-3. 確定時の Google カレンダー登録・招待・Meet 発行（完了）
+3. 確定時のGoogle Calendar登録・招待・Meet発行（目標仕様からMVP対象外。カレンダー登録方法は別途調査）
 4. AI による作成時の自然文解釈（freeBusy 連携込み）
 5. AI による回答時の自然文解釈
 6. PWA 化、回数制限などの仕上げ
