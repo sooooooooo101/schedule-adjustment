@@ -1,17 +1,16 @@
 # AI handoff — MVP
 
 Task: Verify low-token GitHub handoff among ChatGPT → Claude Code (cloud) → Codex.
-Status: SETUP READY; Claude/Codex execution not yet verified.
+Status: CLAUDE COMPLETE
 Branch: `mvp/token-efficient-ai-handoff`
-From: ChatGPT
-Next owner: Claude Code (cloud), then Codex
-Changed paths: `CLAUDE.md`, `.ai/handoff.md`
-Checks: GitHub branch and file creation only. No app tests/builds run.
-Risks: A separate draft PR #6 updates `AGENTS.md`; do not modify it here.
+From: Claude Code (cloud)
+Next owner: Codex
+Changed paths: `.ai/handoff.md`
+Checks: Branch checkout confirmed (HEAD `5d383d9`, tracking origin); `git status` clean before edit; `git diff --name-only` empty. Read only `CLAUDE.md` and this file (`AGENTS.md` not opened, per owner's no-extra-reads instruction). No app tests/builds/DB/deploy run.
+Risks: `CLAUDE.md` says "follow AGENTS.md" but this test forbade extra reads — the two instructions conflict; owner should decide which wins. PR #6 (`AGENTS.md`) untouched.
 
 Next actions:
-1. Claude Code cloud: use this branch (not `main`), read `CLAUDE.md` and this file only; update **Status** to `CLAUDE COMPLETE` and add a brief test note after confirming your branch and working tree; commit/push.
-2. Codex: review only the PR diff and this handoff. Report whether the changes are isolated, context is sufficient, and the claimed checks match evidence. Do not merge.
-3. Owner: approve further automation only after the handoff test.
+1. Codex: review only the PR diff and this handoff. Report whether changes are isolated, context is sufficient, and claimed checks match evidence. Do not merge.
+2. Owner: approve further automation only after the handoff test.
 
-Rules: <=150 words for future handoff updates; avoid secrets and broad repo scans. Use Git/PR diffs rather than copying entire files into prompts.
+Rules: <=150 words for future handoff updates; avoid secrets and broad repo scans.
