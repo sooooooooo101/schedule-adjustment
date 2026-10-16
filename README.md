@@ -1,6 +1,6 @@
 # schedule-adjustment
 
-自然文で日程調整を作り、確定したら Google カレンダー登録・招待・Meet 発行までまとめて行う、自分用のツールです。設計は [docs/design.md](docs/design.md) を参照してください。
+Google カレンダー連携の日程調整ツールです。Google アカウントでログインできる人は誰でも作成者として利用できます。現在は候補日時を手入力して調整を作成し、共有リンクから回答を集め、確定した予定を Google カレンダーに登録できます。自然文での候補作成・回答は設計上の予定機能で、現行コードにはまだ実装されていません。仕様は [docs/design.md](docs/design.md)、コードで確認した現状は [docs/implementation-status.md](docs/implementation-status.md) を参照してください。
 
 ## 開発
 
@@ -28,7 +28,7 @@ npm run dev
 1. Vercel でこのリポジトリをインポートしてプロジェクトを作る
 2. プロジェクトの Storage から Neon を追加する。プランは Free を選ぶ（意図せず有料プランになっていないか確認）
 3. 連携すると `DATABASE_URL` などの環境変数がプロジェクトに自動で入る
-4. `npm run build` は `scripts/migrate.mjs` を実行してから Next.js のビルドを行います。Preview を含む各環境でどのDBに接続するかはVercelの設定次第なので、Migrationの接続先を確認してから実行してください。手元から流す場合は `npx vercel env pull .env.local` のあと `npm run db:migrate`
+4. テーブルは本番デプロイのビルド時に自動で作成・更新される（`npm run build` の最初に `scripts/migrate.mjs` が走ります）。手元から流す場合は `npx vercel env pull .env.local` のあと `npm run db:migrate`
 
 Neon の無料プランは、使っていないと5分で自動休止し、次のアクセスで自動的に起動します（手動の再開は不要）。
 
@@ -38,7 +38,7 @@ Neon の無料プランは、使っていないと5分で自動休止し、次�
 2. OAuth 同意画面（Google Auth Platform）を作成する
    - ユーザーの種類: 外部（Gmail と Workspace の両方でログインするため）
    - スコープ: `calendar.events` と `calendar.freebusy`
-   - 公開ステータス: 「本番環境」にする。「テスト」のままだとリフレッシュトークンが7日で失効し、毎週ログインし直しになります。未審査のため、ログイン時に「確認されていないアプリ」の警告が出ます（自分用なので続行して問題ありません）
+   - 公開ステータスやOAuth審査の要件は、実際の利用範囲に合わせて確認してください。未審査状態ではログイン時に警告が表示される場合があります。
 3. 認証情報で「OAuth クライアント ID（ウェブアプリケーション）」を作成する
    - 承認済みのリダイレクト URI: `http://localhost:3000/api/auth/google/callback` と、本番の `https://<ドメイン>/api/auth/google/callback`
 4. クライアント ID とシークレットを `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` に入れる
@@ -52,7 +52,7 @@ openssl rand -base64 48   # SESSION_SECRET
 openssl rand -base64 32   # TOKEN_ENCRYPTION_KEY
 ```
 
-誰でも Google アカウントでログインして作成者になれます（未審査の間は Google の上限で最大100ユーザー）。
+初回の Google ログイン時に作成者アカウントが作られます。Google アカウントでログインできる人なら誰でも作成者になれます。各作成者は自分の調整を管理し、Google アカウントを追加連携できます。
 
 ### 4. Vercel の環境変数
 
