@@ -1,28 +1,106 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+
+export type ShareResult = "shared" | "cancelled" | "copied" | "manual";
+
+type ShareNavigator = {
+  share?: (data: ShareData) => Promise<void>;
+  clipboard?: { writeText?: (text: string) => Promise<void> };
+};
+
+// 共有シート → クリップボード → 手動コピーの順に試す。例外は外に出さない
+export async function shareOrCopy(nav: ShareNavigator, data: ShareData & { url: string }): Promise<ShareResult> {
+  if (typeof nav.share === "function") {
+    try {
+      await nav.share(data);
+      return "shared";
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return "cancelled";
+    }
+  }
+  if (typeof nav.clipboard?.writeText === "function") {
+    try {
+      await nav.clipboard.writeText(data.url);
+      return "copied";
+    } catch {
+      // 権限がない・安全でない接続などで失敗する。手動コピーに切り替える
+    }
+  }
+  return "manual";
+}
+
+export type ShareStatus = "idle" | "copied" | "manual";
+
+// 新しい結果で表示を必ず上書きし、前回の「コピーしました」や手動コピー欄を残さない。
+// 取り消しのときだけは、直前の表示（手動コピー欄など）をそのまま残す
+export function nextShareStatus(prev: ShareStatus, result: ShareResult): ShareStatus {
+  switch (result) {
+    case "shared":
+      return "idle";
+    case "copied":
+      return "copied";
+    case "manual":
+      return "manual";
+    case "cancelled":
+      return prev;
+  }
+}
 
 // スマホでは共有シート（LINE などに送れる）、使えない環境ではリンクをコピーする
 export function ShareButton({ url, title }: { url: string; title: string }) {
-  const [copied, setCopied] = useState(false);
+  const [status, setStatus] = useState<ShareStatus>("idle");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hintId = useId();
+
+  // 手動コピー欄が出たら、キーボードでもそのままコピーできるようフォーカスして全選択する
+  useEffect(() => {
+    if (status !== "manual") return;
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, [status]);
+
+  useEffect(() => () => {
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+  }, []);
 
   async function share() {
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, text: `「${title}」の日程調整にご回答ください`, url });
-        return;
-      } catch (e) {
-        if (e instanceof DOMException && e.name === "AbortError") return;
-      }
+    const result = await shareOrCopy(navigator, {
+      title,
+      text: `「${title}」の日程調整にご回答ください`,
+      url,
+    });
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    setStatus((prev) => nextShareStatus(prev, result));
+    if (result === "copied") {
+      // 2 秒後に元の表示へ。その間に別の結果が出ていたら上書きしない
+      resetTimer.current = setTimeout(() => setStatus((s) => (s === "copied" ? "idle" : s)), 2000);
     }
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <button type="button" onClick={share} className="button-primary pressable">
-      {copied ? "リンクをコピーしました" : "回答用リンクを送る"}
-    </button>
+    <div className="flex flex-col gap-2">
+      <button type="button" onClick={share} className="button-primary pressable">
+        {status === "copied" ? "リンクをコピーしました" : "回答用リンクを送る"}
+      </button>
+      {status === "manual" && (
+        <div className="flex flex-col gap-1.5">
+          <p id={hintId} role="status" className="section-footer">
+            この端末では自動でコピーできませんでした。下のリンクを長押し（またはすべて選択）してコピーしてください。
+          </p>
+          <input
+            ref={inputRef}
+            type="text"
+            readOnly
+            value={url}
+            aria-label="回答用リンク"
+            aria-describedby={hintId}
+            onFocus={(e) => e.currentTarget.select()}
+            className="grouped field px-4 py-3 text-[0.9375rem]"
+          />
+        </div>
+      )}
+    </div>
   );
 }
