@@ -1,12 +1,12 @@
 # AI handoff — Phase 2 (Issue #8)
 
 Task: Robust response-link sharing (Issue #8).
-Status: CLAUDE COMPLETE — draft PR, awaiting Codex diff review
-Branch: `claude/issue-8-share-fallback` (from `main` `9eceb6e`)
-Next owner: Codex (review diff + this file only; do not merge)
+Status: CLAUDE FIX 1/2 DONE — draft PR #9, awaiting re-review
+Branch: `claude/issue-8-share-fallback`
+Next owner: Codex re-review (diff + this file; do not merge), then Antigravity QA
 
-Changed paths: `src/app/events/[id]/share-button.tsx`, `src/app/events/[id]/share-button.test.ts` (new), `.ai/handoff.md`.
-Outcome: share sheet → clipboard → manual copy. AbortError is silent; clipboard absence/rejection no longer throws and shows a Japanese hint plus a focused, selected read-only input. Success text unchanged.
-Checks (run): `npm run lint` pass; `npm run typecheck` pass; `npm test` 33 passed, 18 skipped (DB tests, no `TEST_DATABASE_URL`). Not run: `npm run build` (migrations), browser/DOM tests.
-Limitations: UI/keyboard behaviour not automated (no DOM test deps); only `shareOrCopy` logic is unit-tested.
-Files read: AGENTS.md, CLAUDE.md, this file, Issue #8, target file, `vitest.config.mts` (include line). Tokens/cost: not measurable.
+Changed paths: `src/app/events/[id]/share-button.tsx`, `src/app/events/[id]/share-button.test.ts`, `.ai/handoff.md`.
+Review fixes: single `status` state via `nextShareStatus` — new results overwrite stale hint/“コピーしました”; copied-reset timer cannot clear a later state. Manual input now gets explicit `focus()` then `select()`.
+Checks (run): lint pass; typecheck pass; `npm test` 37 passed, 18 skipped (DB tests, no `TEST_DATABASE_URL`). Not run: `npm run build` (migrations), browser/keyboard QA (pending Antigravity).
+AGENTS.md: for this revision read the Next.js “Using Client Components” section; current `"use client"` usage matches. Initial commit skipped it (reported).
+Tokens/cost: not measurable.

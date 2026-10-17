@@ -30,17 +30,40 @@ export async function shareOrCopy(nav: ShareNavigator, data: ShareData & { url: 
   return "manual";
 }
 
+export type ShareStatus = "idle" | "copied" | "manual";
+
+// 新しい結果で表示を必ず上書きし、前回の「コピーしました」や手動コピー欄を残さない。
+// 取り消しのときだけは、直前の表示（手動コピー欄など）をそのまま残す
+export function nextShareStatus(prev: ShareStatus, result: ShareResult): ShareStatus {
+  switch (result) {
+    case "shared":
+      return "idle";
+    case "copied":
+      return "copied";
+    case "manual":
+      return "manual";
+    case "cancelled":
+      return prev;
+  }
+}
+
 // スマホでは共有シート（LINE などに送れる）、使えない環境ではリンクをコピーする
 export function ShareButton({ url, title }: { url: string; title: string }) {
-  const [copied, setCopied] = useState(false);
-  const [manual, setManual] = useState(false);
+  const [status, setStatus] = useState<ShareStatus>("idle");
   const inputRef = useRef<HTMLInputElement>(null);
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hintId = useId();
 
-  // 手動コピー欄が出たら、そのままコピーできるよう選択状態でフォーカスする
+  // 手動コピー欄が出たら、キーボードでもそのままコピーできるようフォーカスして全選択する
   useEffect(() => {
-    if (manual) inputRef.current?.select();
-  }, [manual]);
+    if (status !== "manual") return;
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, [status]);
+
+  useEffect(() => () => {
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+  }, []);
 
   async function share() {
     const result = await shareOrCopy(navigator, {
@@ -48,21 +71,20 @@ export function ShareButton({ url, title }: { url: string; title: string }) {
       text: `「${title}」の日程調整にご回答ください`,
       url,
     });
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    setStatus((prev) => nextShareStatus(prev, result));
     if (result === "copied") {
-      setManual(false);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } else if (result === "manual") {
-      setManual(true);
+      // 2 秒後に元の表示へ。その間に別の結果が出ていたら上書きしない
+      resetTimer.current = setTimeout(() => setStatus((s) => (s === "copied" ? "idle" : s)), 2000);
     }
   }
 
   return (
     <div className="flex flex-col gap-2">
       <button type="button" onClick={share} className="button-primary pressable">
-        {copied ? "リンクをコピーしました" : "回答用リンクを送る"}
+        {status === "copied" ? "リンクをコピーしました" : "回答用リンクを送る"}
       </button>
-      {manual && (
+      {status === "manual" && (
         <div className="flex flex-col gap-1.5">
           <p id={hintId} role="status" className="section-footer">
             この端末では自動でコピーできませんでした。下のリンクを長押し（またはすべて選択）してコピーしてください。

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { shareOrCopy } from "./share-button";
+import { nextShareStatus, shareOrCopy } from "./share-button";
 
 const data = { title: "飲み会", text: "回答してください", url: "https://example.com/e/abc" };
 
@@ -38,5 +38,24 @@ describe("shareOrCopy", () => {
   it("共有もクリップボードもない環境では手動コピーにする", async () => {
     expect(await shareOrCopy({}, data)).toBe("manual");
     expect(await shareOrCopy({ clipboard: {} }, data)).toBe("manual");
+  });
+});
+
+describe("nextShareStatus", () => {
+  it("手動コピーのあとに共有できたら、手動コピー欄を消す", () => {
+    expect(nextShareStatus("manual", "shared")).toBe("idle");
+  });
+
+  it("コピー成功の表示中に手動コピーになったら、古い「コピーしました」を残さない", () => {
+    expect(nextShareStatus("copied", "manual")).toBe("manual");
+  });
+
+  it("手動コピーのあとにコピーできたら、手動コピー欄を消して成功を表示する", () => {
+    expect(nextShareStatus("manual", "copied")).toBe("copied");
+  });
+
+  it("取り消しのときは直前の表示を変えない", () => {
+    expect(nextShareStatus("manual", "cancelled")).toBe("manual");
+    expect(nextShareStatus("idle", "cancelled")).toBe("idle");
   });
 });
