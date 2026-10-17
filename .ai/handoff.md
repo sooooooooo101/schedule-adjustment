@@ -1,13 +1,12 @@
-# AI handoff — MVP
+# AI handoff — Phase 2 (Issue #8)
 
-Task: Validate ChatGPT → Claude Code Cloud → GitHub → Codex handoff.
-Status: CODEX REVIEW PASS
-PR: #7 (`mvp/token-efficient-ai-handoff`)
-Next owner: Product Owner / Phase 2
+Task: Robust response-link sharing (Issue #8).
+Status: CLAUDE COMPLETE — draft PR, awaiting Codex diff review
+Branch: `claude/issue-8-share-fallback` (from `main` `9eceb6e`)
+Next owner: Codex (review diff + this file only; do not merge)
 
-Evidence: Claude Code pushed `702f214`, updating only this handoff. ChatGPT verified the GitHub diff and clarified `CLAUDE.md` in `da3dabc`. Codex's PASS report was supplied by the Product Owner: reviewed PR's two files plus main `AGENTS.md`, found no blocking issues, and made no changes. This is not a GitHub-submitted review.
-
-Checks: Vercel status succeeded. App tests/builds were not run for this MVP.
-Risks: Merging main may trigger Vercel production build; `npm run build` invokes DB migrations. No direct deployment or migration was executed in this review.
-Decision: Product Owner requested PR #7 merge in chat (2026-10-17). PR #6 remains separate.
-Next: Phase 2 — test a small code change using diff-based reviews.
+Changed paths: `src/app/events/[id]/share-button.tsx`, `src/app/events/[id]/share-button.test.ts` (new), `.ai/handoff.md`.
+Outcome: share sheet → clipboard → manual copy. AbortError is silent; clipboard absence/rejection no longer throws and shows a Japanese hint plus a focused, selected read-only input. Success text unchanged.
+Checks (run): `npm run lint` pass; `npm run typecheck` pass; `npm test` 33 passed, 18 skipped (DB tests, no `TEST_DATABASE_URL`). Not run: `npm run build` (migrations), browser/DOM tests.
+Limitations: UI/keyboard behaviour not automated (no DOM test deps); only `shareOrCopy` logic is unit-tested.
+Files read: AGENTS.md, CLAUDE.md, this file, Issue #8, target file, `vitest.config.mts` (include line). Tokens/cost: not measurable.
