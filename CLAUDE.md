@@ -1,8 +1,6 @@
 # Claude Code — schedule-adjustment
 
-- For implementation or design changes, first read and follow `AGENTS.md`. For an explicitly scoped handoff-only test (no code changes), read only the named files; state that `AGENTS.md` was not checked. Never edit app code under this exception.
-- Work from the current task/PR. Start with `git status --short` and `git diff --name-only`, then inspect only relevant changed paths; avoid reading the entire repository.
-- At the end of a task, update `.ai/handoff.md` in <= 150 words: outcome, changed paths, checks (run/not run), risks, next owner.
-- Report uncertainty; never mark checks as passed unless run.
-- Never publish secrets, merge, deploy, or change auth/database design without owner approval.
-- WARNING: `npm run build` invokes migrations; verify the database target before running it.
+- Work only on tasks explicitly requested by the Product Owner. Implement, test, and report briefly. Do not automatically trigger other AI agents, reviews, PR monitoring, scheduled checks, or handoff files.
+- Follow `AGENTS.md` when changing code. Read only necessary files, keep diffs small, and avoid unrelated changes.
+- For code changes, use a working branch and PR. Do not merge into `main`, deploy, or alter authentication/security settings without explicit Product Owner approval.
+- `npm run build` runs database migrations. Verify the target database before execution. Never expose secrets or change production data without approval.
