@@ -7,3 +7,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Code Review Rules
+
+- Review only the PR diff and `.ai/handoff.md`; flag P0/P1 issues (bugs, security, data loss, broken acceptance criteria).
+- Do not push commits, approve, merge, enable auto-merge, or deploy. Report findings as review comments.
+- Check that claimed checks match evidence; `npm run build` must not be run (it applies DB migrations).
